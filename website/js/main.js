@@ -22,7 +22,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyButton = document.getElementById('copyButton');
     const clearButton = document.getElementById('clearButton');
     const loadingIndicator = document.getElementById('loadingIndicator');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const darkModeIcon = document.getElementById('darkModeIcon');
+    const editCustomTemplateBtn = document.getElementById('editCustomTemplateBtn');
+    const editCustomTemplateContainer = document.getElementById('editCustomTemplateContainer');
     
+    // Collapsible elements
+    const settingsHeader = document.querySelector('.collapsible-header');
+    const settingsContent = document.querySelector('.collapsible-content');
+    const settingsIcon = document.querySelector('.collapsible-icon');
+
     // Custom template modal elements
     const customTemplateModal = document.getElementById('customTemplateModal');
     const modalCustomPrompt = document.getElementById('modalCustomPrompt');
@@ -33,92 +42,252 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create debounced version of the save settings function
     const debouncedSaveSettings = debounce(saveSettings, 800);
 
-    // Load saved settings on page load
-    loadSavedSettings();
+    // Initialize the app
+    initializeApp();
 
-    // Event listeners
-    
-    // Toggle show/hide API key
-    showKeyCheckbox.addEventListener('change', () => {
-        apiKeyInput.type = showKeyCheckbox.checked ? 'text' : 'password';
-    });
+    /**
+     * Initialize the application
+     */
+    function initializeApp() {
+        // Load saved settings
+        loadSavedSettings();
+        
+        // Add event listeners
+        setupEventListeners();
+        
+        // Initialize drag and drop
+        setupDragAndDrop();
+        
+        // Initialize collapsible sections
+        initializeCollapsible();
+        
+        // Initialize dark mode
+        initializeDarkMode();
+        
+        console.log("App initialization complete");
+    }
 
-    // Handle prompt template selection change
-    promptSelector.addEventListener('change', () => {
-        handlePromptChange();
-        saveSettings(); // Save immediately on dropdown change
-    });
+    /**
+     * Setup all event listeners
+     */
+    function setupEventListeners() {
+        // Toggle show/hide API key
+        showKeyCheckbox.addEventListener('change', () => {
+            apiKeyInput.type = showKeyCheckbox.checked ? 'text' : 'password';
+        });
 
-    // Handle custom prompt textarea changes
-    customPromptTextarea.addEventListener('input', () => {
-        updateTemplateDisplay();
-        debouncedSaveSettings();
-    });
+        // Handle prompt template selection change
+        promptSelector.addEventListener('change', () => {
+            handlePromptChange();
+            saveSettings(); // Save immediately on dropdown change
+        });
 
-    // Handle API key changes
-    apiKeyInput.addEventListener('input', () => {
-        debouncedSaveSettings();
-        checkApiKey();
-    });
+        // Handle custom prompt textarea changes
+        customPromptTextarea.addEventListener('input', () => {
+            updateTemplateDisplay();
+            debouncedSaveSettings();
+        });
 
-    // Handle model selection changes
-    modelSelector.addEventListener('change', () => {
-        saveSettings();
-    });
+        // Handle edit custom template button
+        editCustomTemplateBtn.addEventListener('click', () => {
+            // Fill modal with current custom template value
+            modalCustomPrompt.value = customPromptTextarea.value || '';
+            
+            // Show the modal
+            customTemplateModal.style.display = 'block';
+            setTimeout(() => customTemplateModal.classList.add('show'), 10);
+            modalCustomPrompt.focus();
+        });
 
-    // Handle temperature slider changes
-    temperatureSlider.addEventListener('input', () => {
-        temperatureValue.textContent = temperatureSlider.value;
-        debouncedSaveSettings();
-    });
+        // Handle API key changes
+        apiKeyInput.addEventListener('input', () => {
+            debouncedSaveSettings();
+            checkApiKey();
+        });
 
-    // Handle original prompt textarea input
-    originalPromptTextarea.addEventListener('input', () => {
-        // Enable/disable optimize button based on content
-        optimizeButton.disabled = originalPromptTextarea.value.trim() === '';
-    });
+        // Handle model selection changes
+        modelSelector.addEventListener('change', () => {
+            saveSettings();
+        });
 
-    // Handle optimize button click
-    optimizeButton.addEventListener('click', optimizePrompt);
+        // Handle temperature slider changes
+        temperatureSlider.addEventListener('input', function() {
+            const value = this.value;
+            temperatureValue.textContent = value;
+            // Add visual feedback
+            const percent = (value - this.min) / (this.max - this.min) * 100;
+            this.style.background = `linear-gradient(to right, var(--primary-color) 0%, var(--primary-color) ${percent}%, #e2e8f0 ${percent}%, #e2e8f0 100%)`;
+            debouncedSaveSettings();
+        });
+        
+        // Initialize temperature slider background
+        const initValue = temperatureSlider.value;
+        const initPercent = (initValue - temperatureSlider.min) / (temperatureSlider.max - temperatureSlider.min) * 100;
+        temperatureSlider.style.background = `linear-gradient(to right, var(--primary-color) 0%, var(--primary-color) ${initPercent}%, #e2e8f0 ${initPercent}%, #e2e8f0 100%)`;
 
-    // Handle copy button click
-    copyButton.addEventListener('click', copyOptimizedText);
+        // Handle original prompt textarea input
+        originalPromptTextarea.addEventListener('input', () => {
+            // Enable/disable optimize button based on content
+            optimizeButton.disabled = originalPromptTextarea.value.trim() === '';
+        });
 
-    // Handle clear button click
-    clearButton.addEventListener('click', clearAll);
+        // Handle optimize button click
+        optimizeButton.addEventListener('click', optimizePrompt);
 
-    // Handle custom template modal events
-    saveCustomTemplateBtn.addEventListener('click', () => {
-        customPromptTextarea.value = modalCustomPrompt.value;
-        updateTemplateDisplay();
-        saveSettings();
-        customTemplateModal.style.display = 'none';
-    });
+        // Handle copy button click
+        copyButton.addEventListener('click', copyOptimizedText);
 
-    closeCustomTemplateModal.addEventListener('click', () => {
-        customTemplateModal.style.display = 'none';
-    });
+        // Handle clear button click
+        clearButton.addEventListener('click', clearAll);
 
-    cancelCustomTemplateBtn.addEventListener('click', () => {
-        customTemplateModal.style.display = 'none';
-    });
+        // Handle dark mode toggle
+        darkModeToggle.addEventListener('click', toggleDarkMode);
 
-    // Close modal if clicked outside
-    window.addEventListener('click', (event) => {
-        if (event.target === customTemplateModal) {
-            customTemplateModal.style.display = 'none';
-        }
-    });
+        // Handle collapsible settings panel
+        settingsHeader.addEventListener('click', () => {
+            toggleCollapsible(settingsHeader, settingsContent, settingsIcon);
+        });
 
-    // Enable keyboard shortcuts
-    originalPromptTextarea.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) { // Ctrl+Enter triggers optimization
-            e.preventDefault();
-            if (!optimizeButton.disabled) {
-                optimizePrompt();
+        // Handle custom template modal events
+        saveCustomTemplateBtn.addEventListener('click', () => {
+            // Copy the value from the modal textarea to the hidden textarea
+            customPromptTextarea.value = modalCustomPrompt.value;
+            
+            // Update the template display
+            updateTemplateDisplay();
+            
+            // Save the settings
+            saveSettings();
+            
+            // Show success message
+            showToast('Custom template saved', 'success');
+            
+            // Close the modal
+            closeModal();
+        });
+
+        closeCustomTemplateModal.addEventListener('click', closeModal);
+        cancelCustomTemplateBtn.addEventListener('click', closeModal);
+
+        // Close modal if clicked outside
+        window.addEventListener('click', (event) => {
+            if (event.target === customTemplateModal) {
+                closeModal();
             }
+        });
+
+        // Enable keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Escape key to close modal
+            if (e.key === 'Escape' && customTemplateModal.style.display === 'block') {
+                closeModal();
+            }
+            
+            // Ctrl+Enter to optimize
+            if (e.key === 'Enter' && e.ctrlKey) {
+                if (document.activeElement === originalPromptTextarea && !optimizeButton.disabled) {
+                    e.preventDefault();
+                    optimizePrompt();
+                }
+            }
+            
+            // Ctrl+D to toggle dark mode
+            if (e.key === 'd' && e.ctrlKey) {
+                e.preventDefault();
+                toggleDarkMode();
+            }
+        });
+    }
+
+    /**
+     * Close the custom template modal
+     */
+    function closeModal() {
+        customTemplateModal.classList.remove('show');
+        setTimeout(() => {
+            customTemplateModal.style.display = 'none';
+        }, 300);
+    }
+
+    /**
+     * Initialize drag and drop for the prompt textarea
+     */
+    function setupDragAndDrop() {
+        // Prevent default to allow drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            originalPromptTextarea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+        
+        // Add highlighting when dragging over
+        ['dragenter', 'dragover'].forEach(eventName => {
+            originalPromptTextarea.addEventListener(eventName, (e) => {
+                if (isTextFileDrag(e)) {
+                    originalPromptTextarea.classList.add('highlight');
+                }
+            }, false);
+        });
+        
+        // Remove highlighting when leaving
+        ['dragleave', 'drop'].forEach(eventName => {
+            originalPromptTextarea.addEventListener(eventName, () => {
+                originalPromptTextarea.classList.remove('highlight');
+            }, false);
+        });
+        
+        // Handle drop
+        originalPromptTextarea.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files[0];
+            if (file && (file.type === 'text/plain' || file.type === '')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    originalPromptTextarea.value = event.target.result;
+                    optimizeButton.disabled = originalPromptTextarea.value.trim() === '';
+                };
+                reader.readAsText(file);
+                showToast(`File "${file.name}" loaded`, 'success');
+            }
+        }, false);
+    }
+
+    /**
+     * Initialize collapsible sections
+     */
+    function initializeCollapsible() {
+        // Check if there's a saved state for the settings panel
+        const isCollapsed = localStorage.getItem('settingsPanelCollapsed') === 'true';
+        
+        if (isCollapsed) {
+            settingsContent.classList.add('collapsed');
+            settingsIcon.classList.add('collapsed');
         }
-    });
+    }
+
+    /**
+     * Initialize dark mode
+     */
+    function initializeDarkMode() {
+        // Check if user prefers dark mode or has saved a preference
+        const savedDarkMode = localStorage.getItem('darkMode');
+        const prefersDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        // Apply dark mode if saved preference exists or system prefers it
+        if (savedDarkMode === 'true' || (savedDarkMode === null && prefersDarkMode)) {
+            document.body.classList.add('dark-mode');
+            darkModeIcon.textContent = 'light_mode';
+        }
+    }
+
+    /**
+     * Toggle dark mode
+     */
+    function toggleDarkMode() {
+        const isDarkMode = document.body.classList.toggle('dark-mode');
+        darkModeIcon.textContent = isDarkMode ? 'light_mode' : 'dark_mode';
+        localStorage.setItem('darkMode', isDarkMode);
+    }
 
     /**
      * Checks the API key status and updates UI accordingly
@@ -126,11 +295,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkApiKey() {
         const apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
-            apiKeyStatus.textContent = 'API key is required to use the optimization feature.';
-            apiKeyStatus.style.color = '#d85c4d';
+            apiKeyStatus.textContent = 'API key is required to use the enhancement feature.';
+            apiKeyStatus.style.color = '#e53e3e';
         } else {
-            apiKeyStatus.textContent = 'API key is set.';
-            apiKeyStatus.style.color = '#328E6E';
+            apiKeyStatus.innerHTML = '<span class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</span> API key is set.';
+            apiKeyStatus.style.color = '#48bb78';
         }
     }
 
@@ -164,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Show/hide custom prompt section based on selection
         if (promptType === 'custom') {
-            customPromptSection.style.display = 'block';
+            editCustomTemplateContainer.style.display = 'block';
         }
         
         // Load model selection
@@ -195,12 +364,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Show/hide custom prompt section
         if (selectedValue === 'custom') {
-            customPromptSection.style.display = 'block';
-            // Also show the custom template modal for editing
-            modalCustomPrompt.value = customPromptTextarea.value;
-            customTemplateModal.style.display = 'block';
+            editCustomTemplateContainer.style.display = 'block';
+            // Don't automatically open the modal, wait for button click
         } else {
-            customPromptSection.style.display = 'none';
+            editCustomTemplateContainer.style.display = 'none';
         }
         
         updateTemplateDisplay();
@@ -214,8 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (selectedValue === 'custom') {
             // Use custom prompt
-            const customText = customPromptTextarea.value.trim();
-            templateContent.textContent = customText || "Enter your custom template...";
+            const customText = customPromptTextarea.value || localStorage.getItem(STORAGE_KEYS.CUSTOM_PROMPT) || '';
+            templateContent.textContent = customText || "Enter a custom template by clicking 'Edit Custom Template'...";
         } else if (SYSTEM_PROMPTS[selectedValue]) {
             // Use predefined system prompt
             templateContent.textContent = SYSTEM_PROMPTS[selectedValue];
@@ -244,7 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(STORAGE_KEYS.TEMPERATURE, isNaN(temperature) ? DEFAULT_TEMPERATURE : temperature);
         
         console.log("Settings saved successfully");
-        showToast('Settings saved', 'success');
+        // We don't need to show a toast for auto-saving settings
+        // showToast('Settings saved', 'success');
     }
 
     /**
@@ -254,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const originalText = originalPromptTextarea.value.trim();
         
         if (!originalText) {
-            showToast("Please enter a prompt to optimize", "warning");
+            showToast("Please enter a prompt to enhance", "warning");
             return;
         }
         
@@ -283,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
-            console.log(`Optimizing prompt using: Template=${promptType}, Model=${modelName}, Temperature=${temperature}`);
+            console.log(`Enhancing prompt using: Template=${promptType}, Model=${modelName}, Temperature=${temperature}`);
             
             // Call Gemini API
             const optimizedText = await callGeminiApi(apiKey, originalText, systemPrompt, modelName, temperature);
@@ -291,11 +459,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Display the result
             optimizedPromptTextarea.value = optimizedText;
             copyButton.disabled = false;
-            showToast("Optimization complete", "success");
+            showToast("Prompt enhanced successfully", "success");
             
         } catch (error) {
-            console.error("Optimization error:", error);
-            showToast(`Optimization failed: ${error.message}`, "error");
+            console.error("Enhancement error:", error);
+            showToast(`Enhancement failed: ${error.message}`, "error");
         } finally {
             // Hide loading indicator
             loadingIndicator.classList.remove('show');
@@ -306,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Copies optimized text to clipboard
      */
-    function copyOptimizedText() {
+    async function copyOptimizedText() {
         const textToCopy = optimizedPromptTextarea.value;
         
         if (!textToCopy) {
@@ -314,15 +482,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        navigator.clipboard.writeText(textToCopy)
-            .then(() => {
-                console.log("Text copied to clipboard");
-                showToast("Copied to clipboard", "success");
-            })
-            .catch(err => {
-                console.error("Copy failed:", err);
-                showToast("Copy failed, please select and copy manually", "error");
-            });
+        const success = await copyToClipboard(textToCopy);
+        if (success) {
+            console.log("Text copied to clipboard");
+            showToast("✅ Copied to clipboard", "success");
+        } else {
+            console.error("Copy failed");
+            showToast("Copy failed, please select and copy manually", "error");
+        }
     }
 
     /**
@@ -334,5 +501,6 @@ document.addEventListener('DOMContentLoaded', () => {
         copyButton.disabled = true;
         optimizeButton.disabled = true;
         console.log("All text cleared");
+        showToast("All fields reset", "info");
     }
 });

@@ -40,7 +40,24 @@ function showToast(message, type = 'info', duration = 2000) {
     // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast-notification ${type}`;
-    toast.textContent = message;
+    
+    // Add appropriate icon
+    let icon = '';
+    switch(type) {
+        case 'success':
+            icon = 'check_circle';
+            break;
+        case 'error':
+            icon = 'error';
+            break;
+        case 'warning':
+            icon = 'warning';
+            break;
+        default:
+            icon = 'info';
+    }
+    
+    toast.innerHTML = `<span class="material-icons toast-icon">${icon}</span>${message}`;
 
     // Append to body
     document.body.appendChild(toast);
@@ -115,6 +132,8 @@ async function callGeminiApi(apiKey, textToOptimize, systemPrompt, modelName = D
     // Make the API request
     let response;
     try {
+        console.log(`Calling Gemini API with model: ${modelName}, temperature: ${temperature}`);
+        
         response = await fetch(apiUrl, {
             method: 'POST',
             headers: headers,
@@ -148,7 +167,7 @@ async function callGeminiApi(apiKey, textToOptimize, systemPrompt, modelName = D
     let data;
     try {
         data = await response.json();
-        console.log("API Response Data:", data);
+        console.log("API Response received successfully");
     } catch (jsonError) {
         console.error("Error parsing API response JSON:", jsonError);
         const rawText = await response.text();
@@ -165,6 +184,69 @@ async function callGeminiApi(apiKey, textToOptimize, systemPrompt, modelName = D
         throw new Error(`API Error: ${data.error.message || JSON.stringify(data.error)}`);
     } else {
         console.error("Unexpected API response structure:", data);
-        throw new Error("Unable to extract optimized text from API response.");
+        throw new Error("Unable to extract enhanced text from API response.");
+    }
+}
+
+/**
+ * Toggle the visibility of a collapsible element
+ * @param {Element} header - The collapsible header element
+ * @param {Element} content - The collapsible content element
+ * @param {Element} icon - The icon element to rotate
+ */
+function toggleCollapsible(header, content, icon) {
+    // Toggle the collapsed class on the content
+    content.classList.toggle('collapsed');
+    
+    // Toggle the collapsed class on the icon to rotate it
+    icon.classList.toggle('collapsed');
+    
+    // Store the state in localStorage
+    const isCollapsed = content.classList.contains('collapsed');
+    localStorage.setItem('settingsPanelCollapsed', isCollapsed);
+}
+
+/**
+ * Check if text is dragover event is for a text file
+ * @param {DragEvent} event - The drag event
+ * @returns {boolean} - Whether the event contains a text file
+ */
+function isTextFileDrag(event) {
+    if (event.dataTransfer.types.includes('Files')) {
+        const items = event.dataTransfer.items;
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file' && (item.type === 'text/plain' || item.type === '')) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Copy text to clipboard with modern navigator API or fallback
+ * @param {string} text - Text to copy
+ * @returns {Promise<boolean>} - Whether copy was successful
+ */
+async function copyToClipboard(text) {
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed'; // Avoid scrolling to bottom
+            document.body.appendChild(textarea);
+            textarea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return successful;
+        }
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+        return false;
     }
 }

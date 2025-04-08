@@ -1,4 +1,4 @@
-# Better Prompt
+# BetterPrompt
 
 BetterPrompt is a tool that helps you optimize your AI prompts to get better responses from AI systems.
 
@@ -34,12 +34,12 @@ Visit [GitHub Pages URL] to use BetterPrompt directly in your browser.
 
 1. Clone the repository:
    ```
-   git clone https://github.com/ahacad/betterprompt.git
+   git clone https://github.com/ahacad/betterpromptweb.git
    ```
 
 2. Navigate to the website directory:
    ```
-   cd betterprompt/website
+   cd betterpromptweb/website
    ```
 
 3. Open `index.html` in your browser or use a local development server.
