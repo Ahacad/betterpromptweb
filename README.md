@@ -70,5 +70,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Originally developed as a Chrome extension
+- Originally developed as a [Chrome extension](https://github.com/gm365/BetterPrompt)
 - Uses the Google Gemini API for prompt optimization
