@@ -13,7 +13,7 @@ BetterPrompt is a tool that helps you optimize your AI prompts to get better res
 
 ## Getting Started
 
-Visit [GitHub Pages URL] to use BetterPrompt directly in your browser.
+Visit [The Web Page](https://ahacad.github.io/betterpromptweb) to use BetterPrompt directly in your browser.
 
 ### Prerequisites
 
